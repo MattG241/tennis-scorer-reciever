@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Tennis Scorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a472a;
+    color: white;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .waiting {
+    text-align: center;
+    font-size: 3vw;
+    color: rgba(255,255,255,0.6);
+  }
+  .waiting .icon { font-size: 8vw; margin-bottom: 2vh; }
+
+  #scoreboard { display: none; width: 90vw; }
+
+  .match-header {
+    text-align: center;
+    margin-bottom: 3vh;
+  }
+  .match-header .live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8vw;
+    background: rgba(255,0,0,0.2);
+    border: 1px solid rgba(255,0,0,0.5);
+    border-radius: 2vw;
+    padding: 0.4vh 1.5vw;
+    font-size: 1.8vw;
+    font-weight: 600;
+    color: #ff4444;
+    margin-bottom: 1vh;
+  }
+  .live-dot {
+    width: 1vw; height: 1vw;
+    background: #ff4444;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+  .match-header .format {
+    font-size: 1.6vw;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .score-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: rgba(0,0,0,0.3);
+    border-radius: 1.5vw;
+    overflow: hidden;
+    margin-bottom: 3vh;
+  }
+  .score-table th, .score-table td {
+    padding: 1.5vh 2vw;
+    text-align: center;
+    font-size: 2.5vw;
+  }
+  .score-table th {
+    background: rgba(0,0,0,0.3);
+    color: rgba(255,255,255,0.5);
+    font-size: 1.6vw;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1vw;
+  }
+  .score-table .player-name {
+    text-align: left;
+    font-weight: 700;
+    font-size: 2.8vw;
+    min-width: 25vw;
+  }
+  .score-table .player-name .serving {
+    display: inline-block;
+    width: 1vw; height: 1vw;
+    background: #c8e62e;
+    border-radius: 50%;
+    margin-left: 0.8vw;
+    vertical-align: middle;
+  }
+  .score-table tr:first-child td {
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .score-table .set-score { color: rgba(255,255,255,0.7); font-weight: 500; }
+  .score-table .current-set { color: #c8e62e; font-weight: 700; }
+  .score-table .game-points {
+    font-weight: 800;
+    font-size: 3.5vw;
+    min-width: 8vw;
+  }
+
+  .points-display {
+    text-align: center;
+    margin-bottom: 2vh;
+  }
+  .points-text {
+    font-size: 6vw;
+    font-weight: 800;
+    color: #c8e62e;
+    text-shadow: 0 0 3vw rgba(200,230,46,0.3);
+  }
+  .points-label {
+    font-size: 1.6vw;
+    color: rgba(255,255,255,0.4);
+    margin-top: 0.5vh;
+  }
+
+  .winner-banner {
+    display: none;
+    text-align: center;
+    margin-top: 2vh;
+  }
+  .winner-banner .trophy { font-size: 6vw; }
+  .winner-banner .winner-text {
+    font-size: 4vw;
+    font-weight: 800;
+    color: #ffd700;
+    text-shadow: 0 0 2vw rgba(255,215,0,0.5);
+  }
+  .winner-banner .wins-text {
+    font-size: 2vw;
+    color: rgba(255,255,255,0.6);
+  }
+
+  .duration {
+    text-align: center;
+    font-size: 1.4vw;
+    color: rgba(255,255,255,0.3);
+    margin-top: 2vh;
+  }
+
+  .court-lines {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: -1;
+  }
+  .court-lines::before {
+    content: '';
+    position: absolute;
+    top: 5vh; bottom: 5vh; left: 10vw; right: 10vw;
+    border: 2px solid rgba(255,255,255,0.06);
+    border-radius: 0.5vw;
+  }
+  .court-lines::after {
+    content: '';
+    position: absolute;
+    top: 5vh; bottom: 5vh;
+    left: 50%; width: 2px;
+    background: rgba(255,255,255,0.06);
+  }
+
+  .tiebreak-label {
+    display: none;
+    text-align: center;
+    font-size: 1.6vw;
+    color: #c8e62e;
+    font-weight: 600;
+    margin-bottom: 1vh;
+  }
+</style>
+</head>
+<body>
+
+<div class="court-lines"></div>
+
+<div id="waiting" class="waiting">
+  <div class="icon">&#127934;</div>
+  <div>Waiting for match data...</div>
+</div>
+
+<div id="scoreboard">
+  <div class="match-header">
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+    <div class="format" id="matchFormat"></div>
+  </div>
+
+  <table class="score-table">
+    <thead>
+      <tr>
+        <th></th>
+        <th id="s1h" style="display:none">S1</th>
+        <th id="s2h" style="display:none">S2</th>
+        <th id="s3h" style="display:none">S3</th>
+        <th id="s4h" style="display:none">S4</th>
+        <th id="s5h" style="display:none">S5</th>
+        <th class="current-set">GM</th>
+        <th>PTS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="player-name" id="playerAName"></td>
+        <td class="set-score" id="s1a" style="display:none"></td>
+        <td class="set-score" id="s2a" style="display:none"></td>
+        <td class="set-score" id="s3a" style="display:none"></td>
+        <td class="set-score" id="s4a" style="display:none"></td>
+        <td class="set-score" id="s5a" style="display:none"></td>
+        <td class="current-set" id="gamesA"></td>
+        <td class="game-points" id="ptsA"></td>
+      </tr>
+      <tr>
+        <td class="player-name" id="playerBName"></td>
+        <td class="set-score" id="s1b" style="display:none"></td>
+        <td class="set-score" id="s2b" style="display:none"></td>
+        <td class="set-score" id="s3b" style="display:none"></td>
+        <td class="set-score" id="s4b" style="display:none"></td>
+        <td class="set-score" id="s5b" style="display:none"></td>
+        <td class="current-set" id="gamesB"></td>
+        <td class="game-points" id="ptsB"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="tiebreak-label" id="tiebreakLabel">TIEBREAK</div>
+
+  <div class="points-display">
+    <div class="points-text" id="pointsText"></div>
+    <div class="points-label" id="pointsLabel"></div>
+  </div>
+
+  <div class="winner-banner" id="winnerBanner">
+    <div class="trophy">&#127942;</div>
+    <div class="winner-text" id="winnerName"></div>
+    <div class="wins-text">wins the match!</div>
+  </div>
+
+  <div class="duration" id="duration"></div>
+</div>
+
+<script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+<script>
+  const context = cast.framework.CastReceiverContext.getInstance();
+  const NAMESPACE = 'urn:x-cast:com.matt.tennisscorer';
+
+  function mapPoint(raw) {
+    switch(raw) {
+      case 0: return 'Love';
+      case 1: return '15';
+      case 2: return '30';
+      case 3: return '40';
+      default: return '40';
+    }
+  }
+
+  function displayPoints(state) {
+    const gp = state.currentGame;
+    const serverIsA = state.server === 'A';
+    const serverRaw = serverIsA ? gp.rawA : gp.rawB;
+    const receiverRaw = serverIsA ? gp.rawB : gp.rawA;
+    const serverName = serverIsA ? state.config.playerA : state.config.playerB;
+    const receiverName = serverIsA ? state.config.playerB : state.config.playerA;
+
+    if (gp.tiebreak) {
+      return serverRaw + '-' + receiverRaw;
+    }
+    if (serverRaw === 0 && receiverRaw === 0) return 'Love all';
+    if (serverRaw >= 3 && receiverRaw >= 3) {
+      if (serverRaw === receiverRaw) return 'Deuce';
+      if (serverRaw === receiverRaw + 1) return 'Ad ' + serverName;
+      if (receiverRaw === serverRaw + 1) return 'Ad ' + receiverName;
+    }
+    if (serverRaw === receiverRaw) return mapPoint(serverRaw) + ' all';
+    return mapPoint(serverRaw) + '-' + mapPoint(receiverRaw);
+  }
+
+  function formatDuration(startMs) {
+    const elapsed = Math.floor((Date.now() - startMs) / 1000);
+    const hrs = Math.floor(elapsed / 3600);
+    const mins = Math.floor((elapsed % 3600) / 60);
+    if (hrs > 0) return hrs + 'h ' + mins + 'm';
+    return mins + ' min';
+  }
+
+  function updateScoreboard(state) {
+    document.getElementById('waiting').style.display = 'none';
+    document.getElementById('scoreboard').style.display = 'block';
+
+    const isA_serving = state.server === 'A';
+    const servingDot = '<span class="serving"></span>';
+
+    document.getElementById('playerAName').innerHTML =
+      state.config.playerA + (isA_serving ? servingDot : '');
+    document.getElementById('playerBName').innerHTML =
+      state.config.playerB + (!isA_serving ? servingDot : '');
+
+    const formatText = state.config.format === 'BEST_OF_5' ? 'Best of 5 Sets' : 'Best of 3 Sets';
+    document.getElementById('matchFormat').textContent = formatText;
+
+    // Completed sets
+    for (let i = 1; i <= 5; i++) {
+      const sh = document.getElementById('s' + i + 'h');
+      const sa = document.getElementById('s' + i + 'a');
+      const sb = document.getElementById('s' + i + 'b');
+      if (i <= state.completedSets.length) {
+        sh.style.display = '';
+        sa.style.display = '';
+        sb.style.display = '';
+        sa.textContent = state.completedSets[i-1].gamesA;
+        sb.textContent = state.completedSets[i-1].gamesB;
+      } else {
+        sh.style.display = 'none';
+        sa.style.display = 'none';
+        sb.style.display = 'none';
+      }
+    }
+
+    // Current games
+    document.getElementById('gamesA').textContent = state.currentGamesA;
+    document.getElementById('gamesB').textContent = state.currentGamesB;
+
+    // Points
+    const pointsStr = displayPoints(state);
+    document.getElementById('pointsText').textContent = pointsStr;
+
+    // Raw points for individual display
+    const gp = state.currentGame;
+    if (gp.tiebreak) {
+      document.getElementById('ptsA').textContent = gp.rawA;
+      document.getElementById('ptsB').textContent = gp.rawB;
+      document.getElementById('tiebreakLabel').style.display = 'block';
+      document.getElementById('pointsLabel').textContent = 'Tiebreak';
+    } else {
+      document.getElementById('ptsA').textContent = mapPoint(gp.rawA);
+      document.getElementById('ptsB').textContent = mapPoint(gp.rawB);
+      document.getElementById('tiebreakLabel').style.display = 'none';
+      document.getElementById('pointsLabel').textContent = '';
+    }
+
+    // Winner
+    if (state.winner) {
+      const winnerName = state.winner === 'A' ? state.config.playerA : state.config.playerB;
+      document.getElementById('winnerBanner').style.display = 'block';
+      document.getElementById('winnerName').textContent = winnerName;
+      document.querySelector('.live-badge').style.display = 'none';
+      document.getElementById('pointsText').textContent = '';
+      document.getElementById('pointsLabel').textContent = 'Final';
+    } else {
+      document.getElementById('winnerBanner').style.display = 'none';
+      document.querySelector('.live-badge').style.display = 'inline-flex';
+    }
+
+    // Duration
+    if (state.startedAtMs) {
+      const endTime = state.endedAtMs || Date.now();
+      const elapsed = Math.floor((endTime - state.startedAtMs) / 1000);
+      const hrs = Math.floor(elapsed / 3600);
+      const mins = Math.floor((elapsed % 3600) / 60);
+      let durText = hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + ' min';
+      document.getElementById('duration').textContent = 'Duration: ' + durText;
+    }
+  }
+
+  context.addCustomMessageListener(NAMESPACE, function(event) {
+    try {
+      const state = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      updateScoreboard(state);
+    } catch(e) {
+      console.error('Failed to parse score data', e);
+    }
+  });
+
+  const options = new cast.framework.CastReceiverOptions();
+  options.disableIdleTimeout = true;
+  context.start(options);
+</script>
+</body>
+</html>
