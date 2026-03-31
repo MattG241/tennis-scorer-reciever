@@ -140,6 +140,58 @@
     color: rgba(255,255,255,0.6);
   }
 
+  #winner-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.88);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  #winner-overlay.show {
+    display: flex;
+    animation: overlayAppear 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  .wo-trophy {
+    font-size: 14vw;
+    animation: trophyPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+  }
+  .wo-name {
+    font-size: 7vw;
+    font-weight: 800;
+    color: #ffd700;
+    text-shadow: 0 0 4vw rgba(255,215,0,0.6);
+    margin: 2vh 0 1vh;
+    animation: fadeSlideUp 0.5s ease-out 0.7s both;
+  }
+  .wo-subtitle {
+    font-size: 2.5vw;
+    color: rgba(255,255,255,0.6);
+    animation: fadeSlideUp 0.5s ease-out 0.85s both;
+  }
+  .wo-score {
+    font-size: 3.5vw;
+    color: rgba(255,255,255,0.9);
+    font-weight: 600;
+    margin-top: 2vh;
+    animation: fadeSlideUp 0.5s ease-out 1s both;
+  }
+  @keyframes overlayAppear {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes trophyPop {
+    from { transform: scale(0) rotate(-30deg); opacity: 0; }
+    to { transform: scale(1) rotate(0deg); opacity: 1; }
+  }
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(2vh); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
   .duration {
     text-align: center;
     font-size: 1.4vw;
@@ -246,6 +298,13 @@
   <div class="duration" id="duration"></div>
 </div>
 
+<div id="winner-overlay">
+  <div class="wo-trophy">&#127942;</div>
+  <div class="wo-name" id="woName"></div>
+  <div class="wo-subtitle">wins the match!</div>
+  <div class="wo-score" id="woScore"></div>
+</div>
+
 <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
 <script>
   const context = cast.framework.CastReceiverContext.getInstance();
@@ -267,9 +326,16 @@
       case 0: return 'Love';
       case 1: return '15';
       case 2: return '30';
-      case 3: return '40';
-      default: return 'Ad';
+      default: return '40';
     }
+  }
+
+  // Deuce-aware point display for per-player table cells
+  function cellPoint(rawThis, rawOther) {
+    if (rawThis >= 3 && rawOther >= 3) {
+      return rawThis > rawOther ? 'Ad' : '40';
+    }
+    return mapPoint(rawThis);
   }
 
   function formatLabel(format) {
@@ -360,8 +426,8 @@
       document.getElementById('tiebreakLabel').style.display = 'block';
       document.getElementById('pointsLabel').textContent = 'Tiebreak';
     } else {
-      document.getElementById('ptsA').textContent = mapPoint(gp.rawA);
-      document.getElementById('ptsB').textContent = mapPoint(gp.rawB);
+      document.getElementById('ptsA').textContent = cellPoint(gp.rawA, gp.rawB);
+      document.getElementById('ptsB').textContent = cellPoint(gp.rawB, gp.rawA);
       document.getElementById('tiebreakLabel').style.display = 'none';
       document.getElementById('pointsLabel').textContent = '';
     }
@@ -377,9 +443,20 @@
       document.querySelector('.live-badge').style.display = 'none';
       document.getElementById('pointsText').textContent = '';
       document.getElementById('pointsLabel').textContent = 'Final';
+
+      // Full-screen winner overlay
+      var overlay = document.getElementById('winner-overlay');
+      if (!overlay.classList.contains('show')) {
+        document.getElementById('woName').textContent = winnerName;
+        var sets = state.completedSets || [];
+        var scoreStr = sets.map(function(s) { return s.gamesA + '-' + s.gamesB; }).join('  ');
+        document.getElementById('woScore').textContent = scoreStr;
+        overlay.classList.add('show');
+      }
     } else {
       document.getElementById('winnerBanner').style.display = 'none';
       document.querySelector('.live-badge').style.display = 'inline-flex';
+      document.getElementById('winner-overlay').classList.remove('show');
     }
 
     // Duration
