@@ -251,88 +251,109 @@
   const context = cast.framework.CastReceiverContext.getInstance();
   const NAMESPACE = 'urn:x-cast:com.matt.tennisscorer';
 
+  function teamName(config, side) {
+    if (config.matchType === 'DOUBLES') {
+      if (side === 'A') {
+        return config.playerA2 ? config.playerA + ' / ' + config.playerA2 : config.playerA;
+      } else {
+        return config.playerB2 ? config.playerB + ' / ' + config.playerB2 : config.playerB;
+      }
+    }
+    return side === 'A' ? config.playerA : config.playerB;
+  }
+
   function mapPoint(raw) {
     switch(raw) {
       case 0: return 'Love';
       case 1: return '15';
       case 2: return '30';
       case 3: return '40';
-      default: return '40';
+      default: return 'Ad';
+    }
+  }
+
+  function formatLabel(format) {
+    switch(format) {
+      case 'BEST_OF_5':     return 'Best of 5 Sets';
+      case 'SHORT_SETS':    return 'Short Sets';
+      case 'NO_AD':         return 'No-Ad Scoring';
+      case 'TIEBREAK_ONLY': return 'Tiebreak Only';
+      default:              return 'Best of 3 Sets';
     }
   }
 
   function displayPoints(state) {
     const gp = state.currentGame;
-    const serverIsA = state.server === 'A';
-    const serverRaw = serverIsA ? gp.rawA : gp.rawB;
-    const receiverRaw = serverIsA ? gp.rawB : gp.rawA;
-    const serverName = serverIsA ? state.config.playerA : state.config.playerB;
-    const receiverName = serverIsA ? state.config.playerB : state.config.playerA;
+    const serverSide = state.server;
+    const receiverSide = serverSide === 'A' ? 'B' : 'A';
+    const serverRaw = serverSide === 'A' ? gp.rawA : gp.rawB;
+    const receiverRaw = serverSide === 'A' ? gp.rawB : gp.rawA;
+    const serverName = teamName(state.config, serverSide);
+    const receiverName = teamName(state.config, receiverSide);
 
     if (gp.tiebreak) {
-      return serverRaw + '-' + receiverRaw;
+      return serverRaw + ' - ' + receiverRaw;
     }
-    if (serverRaw === 0 && receiverRaw === 0) return 'Love all';
+    if (serverRaw === 0 && receiverRaw === 0) return 'Love All';
     if (serverRaw >= 3 && receiverRaw >= 3) {
       if (serverRaw === receiverRaw) return 'Deuce';
-      if (serverRaw === receiverRaw + 1) return 'Ad ' + serverName;
-      if (receiverRaw === serverRaw + 1) return 'Ad ' + receiverName;
+      if (serverRaw > receiverRaw) return 'Ad ' + serverName;
+      return 'Ad ' + receiverName;
     }
-    if (serverRaw === receiverRaw) return mapPoint(serverRaw) + ' all';
-    return mapPoint(serverRaw) + '-' + mapPoint(receiverRaw);
+    if (serverRaw === receiverRaw) return mapPoint(serverRaw) + ' All';
+    return mapPoint(serverRaw) + ' - ' + mapPoint(receiverRaw);
   }
 
-  function formatDuration(startMs) {
-    const elapsed = Math.floor((Date.now() - startMs) / 1000);
-    const hrs = Math.floor(elapsed / 3600);
-    const mins = Math.floor((elapsed % 3600) / 60);
-    if (hrs > 0) return hrs + 'h ' + mins + 'm';
-    return mins + ' min';
+  function showCell(el) {
+    // Explicitly set display type based on element tag
+    el.style.display = el.tagName === 'TH' ? 'table-cell' : 'table-cell';
+  }
+
+  function hideCell(el) {
+    el.style.display = 'none';
   }
 
   function updateScoreboard(state) {
     document.getElementById('waiting').style.display = 'none';
     document.getElementById('scoreboard').style.display = 'block';
 
-    const isA_serving = state.server === 'A';
+    const serverSide = state.server;
     const servingDot = '<span class="serving"></span>';
 
     document.getElementById('playerAName').innerHTML =
-      state.config.playerA + (isA_serving ? servingDot : '');
+      teamName(state.config, 'A') + (serverSide === 'A' ? servingDot : '');
     document.getElementById('playerBName').innerHTML =
-      state.config.playerB + (!isA_serving ? servingDot : '');
+      teamName(state.config, 'B') + (serverSide === 'B' ? servingDot : '');
 
-    const formatText = state.config.format === 'BEST_OF_5' ? 'Best of 5 Sets' : 'Best of 3 Sets';
-    document.getElementById('matchFormat').textContent = formatText;
+    document.getElementById('matchFormat').textContent = formatLabel(state.config.format);
 
-    // Completed sets
-    for (let i = 1; i <= 5; i++) {
-      const sh = document.getElementById('s' + i + 'h');
-      const sa = document.getElementById('s' + i + 'a');
-      const sb = document.getElementById('s' + i + 'b');
-      if (i <= state.completedSets.length) {
-        sh.style.display = '';
-        sa.style.display = '';
-        sb.style.display = '';
-        sa.textContent = state.completedSets[i-1].gamesA;
-        sb.textContent = state.completedSets[i-1].gamesB;
+    // Completed sets — show each set column exactly as needed, hide the rest
+    var numCompleted = state.completedSets ? state.completedSets.length : 0;
+    for (var i = 1; i <= 5; i++) {
+      var sh = document.getElementById('s' + i + 'h');
+      var sa = document.getElementById('s' + i + 'a');
+      var sb = document.getElementById('s' + i + 'b');
+      if (i <= numCompleted) {
+        showCell(sh);
+        showCell(sa);
+        showCell(sb);
+        sa.textContent = state.completedSets[i - 1].gamesA;
+        sb.textContent = state.completedSets[i - 1].gamesB;
       } else {
-        sh.style.display = 'none';
-        sa.style.display = 'none';
-        sb.style.display = 'none';
+        hideCell(sh);
+        hideCell(sa);
+        hideCell(sb);
+        sa.textContent = '';
+        sb.textContent = '';
       }
     }
 
-    // Current games
+    // Current set game scores
     document.getElementById('gamesA').textContent = state.currentGamesA;
     document.getElementById('gamesB').textContent = state.currentGamesB;
 
-    // Points
-    const pointsStr = displayPoints(state);
-    document.getElementById('pointsText').textContent = pointsStr;
-
-    // Raw points for individual display
-    const gp = state.currentGame;
+    // Current game points — per player cells
+    var gp = state.currentGame;
     if (gp.tiebreak) {
       document.getElementById('ptsA').textContent = gp.rawA;
       document.getElementById('ptsB').textContent = gp.rawB;
@@ -345,9 +366,12 @@
       document.getElementById('pointsLabel').textContent = '';
     }
 
+    // Verbal score display
+    document.getElementById('pointsText').textContent = displayPoints(state);
+
     // Winner
     if (state.winner) {
-      const winnerName = state.winner === 'A' ? state.config.playerA : state.config.playerB;
+      var winnerName = teamName(state.config, state.winner);
       document.getElementById('winnerBanner').style.display = 'block';
       document.getElementById('winnerName').textContent = winnerName;
       document.querySelector('.live-badge').style.display = 'none';
@@ -360,25 +384,25 @@
 
     // Duration
     if (state.startedAtMs) {
-      const endTime = state.endedAtMs || Date.now();
-      const elapsed = Math.floor((endTime - state.startedAtMs) / 1000);
-      const hrs = Math.floor(elapsed / 3600);
-      const mins = Math.floor((elapsed % 3600) / 60);
-      let durText = hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + ' min';
+      var endTime = state.endedAtMs || Date.now();
+      var elapsed = Math.floor((endTime - state.startedAtMs) / 1000);
+      var hrs = Math.floor(elapsed / 3600);
+      var mins = Math.floor((elapsed % 3600) / 60);
+      var durText = hrs > 0 ? hrs + 'h ' + mins + 'm' : mins + ' min';
       document.getElementById('duration').textContent = 'Duration: ' + durText;
     }
   }
 
   context.addCustomMessageListener(NAMESPACE, function(event) {
     try {
-      const state = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      var state = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
       updateScoreboard(state);
     } catch(e) {
       console.error('Failed to parse score data', e);
     }
   });
 
-  const options = new cast.framework.CastReceiverOptions();
+  var options = new cast.framework.CastReceiverOptions();
   options.disableIdleTimeout = true;
   context.start(options);
 </script>
