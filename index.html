@@ -349,22 +349,23 @@
   }
 
   function displayPoints(state) {
-    const gp = state.currentGame;
-    const serverSide = state.server;
-    const receiverSide = serverSide === 'A' ? 'B' : 'A';
-    const serverRaw = serverSide === 'A' ? gp.rawA : gp.rawB;
-    const receiverRaw = serverSide === 'A' ? gp.rawB : gp.rawA;
-    const serverName = teamName(state.config, serverSide);
-    const receiverName = teamName(state.config, receiverSide);
+    var gp = state.currentGame || {rawA: 0, rawB: 0, tiebreak: false};
+    var serverSide = state.server || 'A';
+    var receiverSide = serverSide === 'A' ? 'B' : 'A';
+    var serverRaw = serverSide === 'A' ? gp.rawA : gp.rawB;
+    var receiverRaw = serverSide === 'A' ? gp.rawB : gp.rawA;
+    var sName = teamName(state.config, serverSide);
+    var rName = teamName(state.config, receiverSide);
 
     if (gp.tiebreak) {
       return serverRaw + ' - ' + receiverRaw;
     }
     if (serverRaw === 0 && receiverRaw === 0) return 'Love All';
     if (serverRaw >= 3 && receiverRaw >= 3) {
+      if (state.config.format === 'NO_AD') return '40 - 40';
       if (serverRaw === receiverRaw) return 'Deuce';
-      if (serverRaw > receiverRaw) return 'Ad ' + serverName;
-      return 'Ad ' + receiverName;
+      if (serverRaw > receiverRaw) return 'Adv. ' + sName;
+      return 'Adv. ' + rName;
     }
     if (serverRaw === receiverRaw) return mapPoint(serverRaw) + ' All';
     return mapPoint(serverRaw) + ' - ' + mapPoint(receiverRaw);
@@ -419,7 +420,7 @@
     document.getElementById('gamesB').textContent = state.currentGamesB;
 
     // Current game points — per player cells
-    var gp = state.currentGame;
+    var gp = state.currentGame || {rawA: 0, rawB: 0, tiebreak: false};
     if (gp.tiebreak) {
       document.getElementById('ptsA').textContent = gp.rawA;
       document.getElementById('ptsB').textContent = gp.rawB;
