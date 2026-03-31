@@ -463,6 +463,13 @@
         var scoreStr = sets.map(function(s) { return s.gamesA + '-' + s.gamesB; }).join('  ');
         document.getElementById('woScore').textContent = scoreStr;
         overlay.classList.add('show');
+
+        // After 10 seconds, hide overlay and reset to waiting screen
+        setTimeout(function() {
+          overlay.classList.remove('show');
+          document.getElementById('scoreboard').style.display = 'none';
+          document.getElementById('waiting').style.display = 'block';
+        }, 10000);
       }
     } else {
       document.getElementById('winnerBanner').style.display = 'none';
