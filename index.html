@@ -381,11 +381,21 @@
   }
 
   function updateScoreboard(state) {
+    // Ensure all fields have sane defaults (kotlinx.serialization may omit default-valued fields)
+    state.completedSets = state.completedSets || [];
+    state.currentGamesA = state.currentGamesA || 0;
+    state.currentGamesB = state.currentGamesB || 0;
+    state.pointNumber = state.pointNumber || 0;
+    state.currentGame = state.currentGame || {};
+    state.currentGame.rawA = state.currentGame.rawA || 0;
+    state.currentGame.rawB = state.currentGame.rawB || 0;
+    state.currentGame.tiebreak = state.currentGame.tiebreak || false;
+
     document.getElementById('waiting').style.display = 'none';
     document.getElementById('scoreboard').style.display = 'block';
 
-    const serverSide = state.server;
-    const servingDot = '<span class="serving"></span>';
+    var serverSide = state.server || 'A';
+    var servingDot = '<span class="serving"></span>';
 
     document.getElementById('playerAName').innerHTML =
       teamName(state.config, 'A') + (serverSide === 'A' ? servingDot : '');
